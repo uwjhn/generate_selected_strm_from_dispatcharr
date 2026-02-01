@@ -46,7 +46,7 @@ python3 refresh_m3u_in_dispatcharr.py
 
 Execution Flow:
 1. Trigger: Sends a POST request to Dispatcharr to start an M3U provider refresh.
-2. Wait: Pauses for 180 seconds to allow the database to update. (Wait can be shortened, based on your M3U provider and hardware)
+2. Wait: Pauses for 180 seconds to allow the database to update (the delay/wait can be shortened, based on your M3U provider and hardware).
 3. Sync: Automatically calls the generator script in update mode to add new episodes.
 
 ---
