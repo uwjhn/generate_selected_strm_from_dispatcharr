@@ -55,18 +55,22 @@ Execution Flow:
 
 Open both .py files and edit the CONFIGURATION section:
 
+```
 API_BASE = "http://192.168.178.10:9191"
 USERNAME = "STRMgen"
 PASSWORD = "STRMgen"
 
 OUTPUT_DIR_MOVIES - e.g. = "/mnt/ssd_001/media/VOD_movies_selected"
 OUTPUT_DIR_SERIES - e.g. = "/mnt/ssd_001/media/VOD_series_selected"
+```
 
 ---
 
 ## Automation (Cronjob)
 To keep your series updated automatically (e.g., every night at 4:00 AM):
+```
 0 4 * * * /usr/bin/python3 /path/to/refresh_m3u_in_dispatcharr.py
+```
 
 ---
 
