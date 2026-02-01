@@ -1,6 +1,6 @@
 # Dispatcharr STRM Generator for Jellyfin
 
-This project provides a surgical way to manage your VOD library from Dispatcharr. Instead of importing thousands of unwanted streams into your media server, these scripts allow you to selectively pick movies and series, generating .strm files that Jellyfin can play directly.
+This project provides a surgical way to manage your VOD library from [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr). Instead of importing thousands of unwanted streams into your media server, these scripts allow you to selectively pick movies and series, generating .strm files that Jellyfin can play directly. All designed to run in a terminal, e.g. via ssh on a smartphone.
 
 ---
 
@@ -19,8 +19,8 @@ The scripts organize content into specific directories. You should add these roo
 
 | Media Type | Destination Folders (Examples) | Jellyfin Library Type |
 | :--- | :--- | :--- |
-| Movies | VOD_movies_selected, VOD_kids_movies_selected | Movies |
-| Series | VOD_series_selected, VOD_kids_series_selected | Shows |
+| Movies | VOD_movies_selected, VOD_kids_movies_selected, ... | Movies |
+| Series | VOD_series_selected, VOD_kids_series_selected, ... | Shows |
 
 ---
 
@@ -29,20 +29,24 @@ The scripts organize content into specific directories. You should add these roo
 ### 1. Manual Addition: generate_selected_strm_from_dispatcharr.py
 Use this script whenever you want to add a new movie or series to your collection.
 
-Command: python3 generate_selected_strm_from_dispatcharr.py
+```
+python3 generate_selected_strm_from_dispatcharr.py
+```
 
 - Add Movie/Series: Search by name, select the correct version from the results, and choose the target directory.
 - Update All: You can also trigger a manual update of all existing series from the menu.
-- Internal logic: For series, it creates a SteamID.nfo file for tracking.
+- Internal logic: For series, it creates a SteamID.nfo file for tracking. This allows the update script to identify the series in the API later.
 
 ### 2. Automatic Maintenance: refresh_m3u_in_dispatcharr.py
-This script automates the background maintenance.
+This script automates the background maintenance. It is designed to be run via a scheduler (like Cron).
 
-Command: python3 refresh_m3u_in_dispatcharr.py
+```
+python3 refresh_m3u_in_dispatcharr.py
+```
 
 Execution Flow:
 1. Trigger: Sends a POST request to Dispatcharr to start an M3U provider refresh.
-2. Wait: Pauses for 180 seconds to allow the database to update.
+2. Wait: Pauses for 180 seconds to allow the database to update. (Wait can be shortened, based on your M3U provider and hardware)
 3. Sync: Automatically calls the generator script in update mode to add new episodes.
 
 ---
@@ -55,19 +59,18 @@ API_BASE = "http://192.168.178.10:9191"
 USERNAME = "STRMgen"
 PASSWORD = "STRMgen"
 
-OUTPUT_DIR_MOVIES = "/mnt/ssd_001/media/VOD_movies_selected"
-OUTPUT_DIR_SERIES = "/mnt/ssd_001/media/VOD_series_selected"
+OUTPUT_DIR_MOVIES - e.g. = "/mnt/ssd_001/media/VOD_movies_selected"
+OUTPUT_DIR_SERIES - e.g. = "/mnt/ssd_001/media/VOD_series_selected"
 
 ---
 
 ## Automation (Cronjob)
-
 To keep your series updated automatically (e.g., every night at 4:00 AM):
 0 4 * * * /usr/bin/python3 /path/to/refresh_m3u_in_dispatcharr.py
 
 ---
 
 ## Logging
-
+Both scripts maintain rolling logs (max 100 lines) to help you monitor the activity:
 - log_generate_selected_strm_from_dispatcharr.log
 - log_refresh_m3u_in_dispatcharr_and_update_strms.log
