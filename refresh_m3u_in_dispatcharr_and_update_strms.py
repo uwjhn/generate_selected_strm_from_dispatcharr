@@ -14,13 +14,14 @@ USERNAME = "STRMgen"
 PASSWORD = "STRMgen"
 
 # Paths to the associated scripts and files
-STRM_SCRIPT_PATH = "/mnt/ssd_001/dietpi_userdata/IPTV_tools/generate_selected_strm_from_dispatcharr"
+# Script to run after refresh (can be set with or without .py extension)
+STRM_SCRIPT_PATH = "/mnt/ssd_001/dietpi_userdata/IPTV_tools/generate_selected_strm_from_dispatcharr.py"
 TOKEN_FILE = "/mnt/ssd_001/dietpi_userdata/IPTV_tools/.strm_token"
 
-# Updated log file name as requested
+# Log file for this refresh cycle
 LOG_FILE = "/mnt/ssd_001/dietpi_userdata/IPTV_tools/log_refresh_m3u_in_dispatcharr_and_update_strms.log"
 
-# Wait time after triggering the refresh in seconds (3 minutes)
+# Wait time after triggering the refresh in seconds (e.g. 180s = 3 minutes)
 # This allows the background database update to complete before scanning for new episodes
 WAIT_TIME = 180
 
@@ -48,84 +49,124 @@ def write_log(message):
     except Exception as e:
         print(f"Error writing to log file: {e}")
 
-def get_token():
-    """Retrieves access token from local file or authenticates via API if needed."""
-    if os.path.exists(TOKEN_FILE):
-        try:
-            with open(TOKEN_FILE, "r") as f:
-                data = json.load(f)
-            if "access" in data:
-                return data["access"]
-        except Exception:
-            pass
+def load_tokens():
+    """Loads access and refresh tokens from the local file."""
+    if not os.path.exists(TOKEN_FILE):
+        return None
+    try:
+        with open(TOKEN_FILE, "r") as f:
+            data = json.load(f)
+        if "access" not in data or "refresh" not in data:
+            return None
+        return data
+    except (json.JSONDecodeError, IOError):
+        return None
 
-    write_log("Token not found or invalid. Authenticating...")
+def get_token():
+    """Retrieves a new token via login or returns existing ones."""
+    tokens = load_tokens()
+    if tokens:
+        return tokens["access"], tokens["refresh"]
+
+    # Request new token from the API if no file exists
     try:
         resp = requests.post(
             f"{API_BASE}/api/accounts/token/",
             json={"username": USERNAME, "password": PASSWORD},
             timeout=10
         )
-        if resp.status_code == 200:
-            data = resp.json()
-            with open(TOKEN_FILE, "w") as f:
-                json.dump(data, f)
-            return data["access"]
-        else:
-            write_log(f"Login failed: {resp.status_code}")
-            return None
-    except Exception as e:
-        write_log(f"Connection error during login: {e}")
+    except requests.exceptions.RequestException:
+        write_log("Network error during login.")
+        return None, None
+
+    if resp.status_code != 200:
+        write_log(f"Error fetching token: {resp.text}")
+        return None, None
+
+    data = resp.json()
+    with open(TOKEN_FILE, "w") as f:
+        json.dump(data, f)
+    return data["access"], data["refresh"]
+
+def request_with_token(method, url, **kwargs):
+    """
+    Helper to perform authorized requests and handle token expiration/refresh automatically.
+    This ensures we don't fail on a 401 error but retry with a new token.
+    """
+    access, refresh = get_token()
+    if not access:
+        return None
+
+    headers = kwargs.pop("headers", {})
+    headers["Authorization"] = f"Bearer {access}"
+    # Ensure we accept JSON responses
+    headers["accept"] = "application/json"
+
+    try:
+        resp = requests.request(method, url, headers=headers, **kwargs)
+
+        # If token is expired (401) or forbidden (403), try to refresh it
+        if resp.status_code in [401, 403]:
+            write_log(f"Token expired or invalid ({resp.status_code}). Refreshing...")
+            
+            # Remove the old invalid token file
+            if os.path.exists(TOKEN_FILE):
+                os.remove(TOKEN_FILE)
+
+            # Get fresh tokens
+            access, refresh = get_token()
+            if not access:
+                return None
+            
+            # Retry the request with the new token
+            headers["Authorization"] = f"Bearer {access}"
+            resp = requests.request(method, url, headers=headers, **kwargs)
+
+        return resp
+    except requests.exceptions.RequestException as e:
+        write_log(f"Connection error: {e}")
         return None
 
 def trigger_refresh():
-    """Triggers the M3U refresh in Dispatcharr via POST request."""
-    token = get_token()
-    if not token:
-        return False
-
+    """Triggers the M3U refresh via POST request using the authorized helper."""
     url = f"{API_BASE}/api/m3u/refresh/"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "accept": "application/json",
-        "Content-Length": "0"
-    }
-
     write_log(f"Sending POST Refresh to: {url}")
-    try:
-        # POST Request with empty body (as required by Swagger UI)
-        resp = requests.post(url, headers=headers, data='', timeout=30)
+    
+    # POST Request with empty body (data='') as often required by Swagger implementations
+    # Using request_with_token handles the 401 retry logic automatically
+    resp = request_with_token("POST", url, data='', timeout=30)
 
-        if resp.status_code in [200, 201, 202, 204]:
-            write_log(f"M3U Refresh successfully triggered (Status {resp.status_code}).")
-            return True
-        else:
-            write_log(f"Refresh failed. Code: {resp.status_code} - {resp.text}")
-            return False
-    except Exception as e:
-        write_log(f"Error during refresh request: {e}")
+    # Check for successful status codes (200 OK, 201 Created, 202 Accepted, 204 No Content)
+    if resp and resp.status_code in [200, 201, 202, 204]:
+        write_log(f"M3U Refresh successfully triggered (Status {resp.status_code}).")
+        return True
+    else:
+        status = resp.status_code if resp else "No Response"
+        text = resp.text if resp else ""
+        write_log(f"Refresh failed. Code: {status} - {text}")
         return False
 
 def run_strm_update():
     """Executes the STRM generation script and captures output in real-time."""
-    # Safety check: Try both with and without .py extension if the path fails
     target_path = STRM_SCRIPT_PATH
+    
+    # Safety check: Try finding the script with .py extension if the path is missing it
     if not os.path.exists(target_path):
         if os.path.exists(target_path + ".py"):
             target_path += ".py"
         else:
-            write_log(f"ERROR: STRM script not found: {STRM_SCRIPT_PATH}")
+            write_log(f"ERROR: STRM script not found at: {STRM_SCRIPT_PATH}")
             return
 
     write_log(f"Starting STRM Update: {os.path.basename(target_path)}")
     try:
-        # Launch subprocess and merge stderr into stdout
+        # Launch subprocess and merge stderr into stdout for unified logging
         process = subprocess.Popen(
             ["/usr/bin/python3", target_path, "update"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            bufsize=1
+            bufsize=1 # Line buffered
         )
 
         # Stream lines from the generator script into this script's log
@@ -151,7 +192,7 @@ def main():
     # First step: Trigger the provider refresh
     if trigger_refresh():
         write_log(f"Waiting {WAIT_TIME} seconds for database update to settle...")
-        # Pause execution to allow Dispatcharr to process the M3U list
+        # Pause execution to allow Dispatcharr to process the M3U list background tasks
         time.sleep(WAIT_TIME)
         
         # Second step: Run the STRM generator in update mode
