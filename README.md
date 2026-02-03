@@ -37,11 +37,11 @@ python3 generate_selected_strm_from_dispatcharr.py
 - Update All: You can also trigger a manual update of all existing series from the menu.
 - Internal logic: For series, it creates a SteamID.nfo file for tracking. This allows the update script to identify the series in the API later.
 
-### 2. Automatic Maintenance: refresh_m3u_in_dispatcharr.py
+### 2. Automatic Maintenance: refresh_m3u_in_dispatcharr_and_update_strms.py
 This script automates the background maintenance. It is designed to be run via a scheduler (like Cron).
 
 ```
-python3 refresh_m3u_in_dispatcharr.py
+python3 refresh_m3u_in_dispatcharr_and_update_strms.py
 ```
 
 Execution Flow:
@@ -69,7 +69,7 @@ OUTPUT_DIR_SERIES - e.g. = "/mnt/ssd_001/media/VOD_series_selected"
 ## Automation (Cronjob)
 To keep your series updated automatically (e.g., every night at 4:00 AM):
 ```
-0 4 * * * /usr/bin/python3 /path/to/refresh_m3u_in_dispatcharr.py
+0 4 * * * /usr/bin/python3 /path/to/refresh_m3u_in_dispatcharr_and_update_strms.py > /dev/null 2>&1
 ```
 
 ---
