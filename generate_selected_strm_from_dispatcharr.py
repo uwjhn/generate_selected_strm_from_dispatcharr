@@ -33,14 +33,20 @@ def write_log(message):
     """Writes a message to the log file and maintains a limit of 100 lines."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}] {message}\n"
-    with open(LOG_FILE, "a") as f:
-        f.write(log_entry)
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "r") as f:
-            lines = f.readlines()
-        if len(lines) > 100:
-            with open(LOG_FILE, "w") as f:
-                f.writelines(lines[-100:])
+    # Print to console as well
+    print(log_entry.strip())
+    
+    try:
+        with open(LOG_FILE, "a") as f:
+            f.write(log_entry)
+        if os.path.exists(LOG_FILE):
+            with open(LOG_FILE, "r") as f:
+                lines = f.readlines()
+            if len(lines) > 100:
+                with open(LOG_FILE, "w") as f:
+                    f.writelines(lines[-100:])
+    except Exception as e:
+        print(f"Error writing to log: {e}")
 
 def load_tokens():
     """Loads access and refresh tokens from the local file."""
@@ -241,12 +247,13 @@ def process_series_creation(series_id, series_name, base_folder, silent=False, y
     # Requirement 5: Handling cases where provider has no episodes (content removed)
     if not episodes:
         msg = f"Check for: {clean_name} | Warning: No episodes found (ID: {series_id})."
-        if not silent: print(msg)
         write_log(msg)
         return 0, 0
 
-    files_updated = 0
+    count_new = 0
+    count_updated = 0
     seasons = set()
+
     for ep in episodes:
         try:
             s, e = str(ep['season_number']).zfill(2), str(ep['episode_number']).zfill(2)
@@ -255,22 +262,46 @@ def process_series_creation(series_id, series_name, base_folder, silent=False, y
             os.makedirs(s_dir, exist_ok=True)
 
             filepath = os.path.join(s_dir, f"{clean_name} - S{s}E{e}.strm")
-            url = f"{API_BASE}/proxy/vod/episode/{ep['uuid']}?m3u_account_id={M3U_ACCOUNT_ID}"
+            expected_url = f"{API_BASE}/proxy/vod/episode/{ep['uuid']}?m3u_account_id={M3U_ACCOUNT_ID}"
 
-            # Only write if file is missing or URL has changed
-            write = True
-            if os.path.exists(filepath):
-                with open(filepath, "r") as f:
-                    if f.read().strip() == url: write = False
-            if write:
-                with open(filepath, "w") as f: f.write(url)
-                files_updated += 1
-        except Exception: continue
+            # Check logic split into New vs Updated
+            if not os.path.exists(filepath):
+                # File does not exist -> Create NEW
+                with open(filepath, "w") as f:
+                    f.write(expected_url)
+                count_new += 1
+            else:
+                # File exists -> Check content
+                try:
+                    with open(filepath, "r") as f:
+                        current_content = f.read().strip()
+                    
+                    if current_content != expected_url:
+                        # Content differs -> Update
+                        with open(filepath, "w") as f:
+                            f.write(expected_url)
+                        count_updated += 1
+                except Exception:
+                    # Error reading file -> Overwrite safely
+                    with open(filepath, "w") as f:
+                        f.write(expected_url)
+                    count_updated += 1
 
-    res_msg = f"Check for: {clean_name} | Episodes: {len(episodes)} | Seasons: {len(seasons)} | NEW: {files_updated}"
-    if not silent: print(res_msg)
-    write_log(res_msg)
-    return len(episodes), files_updated
+        except Exception: 
+            continue
+
+    # Logic to build the summary string
+    res_msg = f"Check for: {clean_name} | Episodes: {len(episodes)} | Seasons: {len(seasons)} | NEW: {count_new} | UPDATED: {count_updated}"
+    
+    # Print logic: Always print if not silent, or if silent but there were changes
+    if not silent:
+        # write_log handles both file writing and console printing
+        write_log(res_msg)
+    elif (count_new > 0 or count_updated > 0):
+        # If running silently (e.g. background update) but changes happened, verify we log it
+        write_log(res_msg)
+
+    return len(episodes), (count_new + count_updated)
 
 def update_loop():
     """Scans all output directories and updates episodes for all found series."""
