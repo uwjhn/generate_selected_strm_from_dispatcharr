@@ -9,7 +9,7 @@ from datetime import datetime
 
 # === CONFIGURATION ===
 # Base URL of the Dispatcharr API
-API_BASE = "http://192.168.178.99:9191"
+API_BASE = "http://192.168.178.100:9191"
 USERNAME = "STRMgen"
 PASSWORD = "STRMgen"
 
@@ -21,9 +21,9 @@ TOKEN_FILE = "/media/media_ext/IPTV_tools/.strm_token"
 # Log file for this refresh cycle
 LOG_FILE = "/media/media_ext/IPTV_tools/log_refresh_m3u_in_dispatcharr_and_update_strms.log"
 
-# Wait time after triggering the refresh in seconds (e.g. 180s = 3 minutes)
+# Wait time after triggering the refresh in seconds (e.g. 60s = 1 minutes)
 # This allows the background database update to complete before scanning for new episodes
-WAIT_TIME = 180
+WAIT_TIME = 60
 
 # ======================
 

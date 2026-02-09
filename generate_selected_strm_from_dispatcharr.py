@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import requests
+import time
 import os
 import sys
 import json
@@ -8,7 +9,7 @@ from datetime import datetime
 
 # === CONFIGURATION ===
 # The base URL of your API service
-API_BASE = "http://192.168.178.99:9191"
+API_BASE = "http://192.168.178.100:9191"
 USERNAME = "STRMgen"
 PASSWORD = "STRMgen"
 M3U_ACCOUNT_ID = "2"  # Crucial for series stream generation
@@ -136,6 +137,7 @@ def trigger_provider_info(series_id):
     url = f"{API_BASE}/api/vod/series/{series_id}/provider-info/"
     print(f"Initializing streams via Provider-Info (ID: {series_id})...")
     resp = request_with_token("GET", url, timeout=60)
+    time.sleep(1)
     if resp and resp.status_code == 200:
         print("Successfully initialized.")
         return True
