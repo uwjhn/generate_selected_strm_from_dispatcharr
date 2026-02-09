@@ -8,24 +8,24 @@ from datetime import datetime
 
 # === CONFIGURATION ===
 # The base URL of your API service
-API_BASE = "http://192.168.178.10:9191"
+API_BASE = "http://192.168.178.99:9191"
 USERNAME = "STRMgen"
 PASSWORD = "STRMgen"
 M3U_ACCOUNT_ID = "2"  # Crucial for series stream generation
 
 # Paths for Movies
-OUTPUT_DIR_MOVIES = "/mnt/ssd_001/media/VOD_movies_selected"
-OUTPUT_DIR_KIDS = "/mnt/ssd_001/media/VOD_kids_movies_selected"
-OUTPUT_DIR_UW_MOVIES = "/mnt/ssd_001/media/VOD_uw_movies_selected"
+OUTPUT_DIR_MOVIES = "/media/media_ext/VOD_movies_selected"
+OUTPUT_DIR_KIDS = "/media/media_ext/VOD_kids_movies_selected"
+OUTPUT_DIR_UW_MOVIES = "/media/media_ext/VOD_uw_movies_selected"
 
 # Paths for Series
-OUTPUT_DIR_SERIES = "/mnt/ssd_001/media/VOD_series_selected"
-OUTPUT_DIR_KIDS_SERIES = "/mnt/ssd_001/media/VOD_kids_series_selected"
-OUTPUT_DIR_UW_SERIES = "/mnt/ssd_001/media/VOD_uw_series_selected"
+OUTPUT_DIR_SERIES = "/media/media_ext/VOD_series_selected"
+OUTPUT_DIR_KIDS_SERIES = "/media/media_ext/VOD_kids_series_selected"
+OUTPUT_DIR_UW_SERIES = "/media/media_ext/VOD_uw_series_selected"
 
-TOKEN_FILE = "/mnt/ssd_001/dietpi_userdata/IPTV_tools/.strm_token"
+TOKEN_FILE = "/media/media_ext/IPTV_tools/.strm_token"
 # Updated log file name as requested
-LOG_FILE = "/mnt/ssd_001/dietpi_userdata/IPTV_tools/log_generate_selected_strm_from_dispatcharr.log"
+LOG_FILE = "/media/media_ext/IPTV_tools/log_generate_selected_strm_from_dispatcharr.log"
 
 # ======================
 
