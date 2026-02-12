@@ -111,23 +111,50 @@ def request_with_token(method, url, **kwargs):
         return None
 
 def format_title_for_jellyfin(name, year=None):
-    """Cleans up the title string to match Jellyfin naming conventions (Folder/File safe)."""
+    """
+    Cleans up the title string to match Jellyfin naming conventions.
+    Removes provider prefixes, country codes, and metadata to ensure 
+    proper matching for folders and files.
+    """
+    
+    # 1. Extract year from parentheses if not already provided
     if not year:
         match = re.search(r"\((\d{4})\)", name)
-        if match: year = match.group(1)
+        if match: 
+            year = match.group(1)
 
-    name = re.sub(r"^[A-Z0-9-]{2,10}\s*-\s*", "", name)
+    # 2. Remove provider prefixes (e.g., "4K-A+ - ", "AMZ - ", "4K-DE - ")
+    name = re.sub(r"^[A-Z0-9+-]{2,10}\s*-\s*", "", name)
+
+    # 3. Remove country codes in parentheses (e.g., (US), (DE), (GB), (MX))
+    # Targets 2-3 uppercase letters inside brackets
+    name = re.sub(r"\([A-Z]{2,3}\)", "", name)
+
+    # 4. Remove all content within square brackets
     name = re.sub(r"\[.*?\]", "", name)
-    name = re.sub(r"\((?!\d{4}).*?\)", "", name)
+
+    # 5. Filter out common metadata and "garbage" keywords
     garbage = ["1080p", "720p", "4K", "UHD", "German", "Dual", "Dubbed", "BDRip", "WebRip"]
     for word in garbage:
         name = re.sub(word, "", name, flags=re.IGNORECASE)
+
+    # 6. Normalize separators by replacing dots and underscores with spaces
     name = name.replace(".", " ").replace("_", " ")
-    if year and str(year) not in name:
-        name = f"{name} ({year})"
-    name = re.sub(r"\((\d{4})\)\s*\(\1\)", r"(\1)", name)
+
+    # 7. Standardize the release year
+    if year:
+        # Remove existing instances of the year to prevent duplicates
+        name = name.replace(f"({year})", "").replace(str(year), "")
+        # Append the year cleanly at the end in parentheses
+        name = f"{name.strip()} ({year})"
+
+    # 8. Cleanup: Remove duplicate spaces and trim leading/trailing dashes or whitespace
     name = re.sub(r"\s{2,}", " ", name).strip(" -")
+    
+    # 9. Sanitize for filesystem safety
+    # Keep alphanumeric characters and specific allowed symbols
     safe_name = "".join(c for c in name if c.isalnum() or c in " _-():").rstrip()
+    
     return safe_name
 
 # --- PROVIDER INFO TRIGGER ---
