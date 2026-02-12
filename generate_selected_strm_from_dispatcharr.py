@@ -215,11 +215,11 @@ def select_folder_movies():
     print("3) VOD_uw_movies_selected")
     print("0) Cancel")
     while True:
-        c = input("Selection: ")
-        if c == "0": sys.exit(0)
-        if c == "1": return OUTPUT_DIR_MOVIES
-        if c == "2": return OUTPUT_DIR_KIDS
-        if c == "3": return OUTPUT_DIR_UW_MOVIES
+        choice = input("Selection: ")
+        if choice == "0": sys.exit(0)
+        if choice == "1": return OUTPUT_DIR_MOVIES
+        if choice == "2": return OUTPUT_DIR_KIDS
+        if choice == "3": return OUTPUT_DIR_UW_MOVIES
 
 def generate_strm_movie(movie, stream_id):
     """Creates the final .strm file for a movie."""
@@ -252,11 +252,11 @@ def select_folder_series():
     print("3) VOD_uw_series_selected")
     print("0) Cancel")
     while True:
-        c = input("Selection: ")
-        if c == "0": sys.exit(0)
-        if c == "1": return OUTPUT_DIR_SERIES
-        if c == "2": return OUTPUT_DIR_KIDS_SERIES
-        if c == "3": return OUTPUT_DIR_UW_SERIES
+        choice = input("Selection: ")
+        if choice == "0": sys.exit(0)
+        if choice == "1": return OUTPUT_DIR_SERIES
+        if choice == "2": return OUTPUT_DIR_KIDS_SERIES
+        if choice == "3": return OUTPUT_DIR_UW_SERIES
 
 def process_series_creation(series_id, series_name, base_folder, silent=False, year=None):
     """Creates directory structure and .strm files for all seasons/episodes of a series."""
@@ -277,7 +277,7 @@ def process_series_creation(series_id, series_name, base_folder, silent=False, y
     if not episodes:
         msg = f"Check for: {clean_name} | Warning: No episodes found (ID: {series_id})."
         write_log(msg)
-        return 0, 0
+        return 0, 0, 0
 
     count_new = 0
     count_updated = 0
@@ -330,13 +330,17 @@ def process_series_creation(series_id, series_name, base_folder, silent=False, y
         # If running silently (e.g. background update) but changes happened, verify we log it
         write_log(res_msg)
 
-    return len(episodes), (count_new + count_updated)
+    return len(episodes), count_new, count_updated
 
 def update_loop():
     """Scans all output directories and updates episodes for all found series."""
     if os.path.exists(TOKEN_FILE):
         os.remove(TOKEN_FILE)
         print("Token refreshed for update run.")
+
+    total_new = 0
+    total_updated = 0
+    series_count = 0
 
     write_log("--- START UPDATE RUN ---")
     for base_dir in [OUTPUT_DIR_SERIES, OUTPUT_DIR_KIDS_SERIES, OUTPUT_DIR_UW_SERIES]:
@@ -346,11 +350,15 @@ def update_loop():
             nfo = os.path.join(entry.path, "SteamID.nfo")
             if entry.is_dir() and os.path.exists(nfo):
                 try:
+                    series_count += 1
                     with open(nfo, "r") as f: s_id = f.read().strip()
-                    process_series_creation(s_id, entry.name, base_dir, silent=False)
+                    _, n, u = process_series_creation(s_id, entry.name, base_dir, silent=False)
+                    total_new += n
+                    total_updated += u
                 except Exception as e:
                     print(f"Error processing {entry.name}: {e}")
 
+    write_log(f"SUMMARY: Scanned {series_count} series | Total NEW episodes: {total_new} | Total UPDATED: {total_updated}")
     write_log("--- END UPDATE RUN ---")
 
 def main():
